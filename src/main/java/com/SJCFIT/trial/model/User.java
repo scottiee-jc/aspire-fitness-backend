@@ -16,12 +16,10 @@ public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
     private String firstName;
     private String lastName;
     private int age;
     private LocalDate dob;
-    private List<String> workouts;
 
     //controller constructor for new user
     public User(String firstName, String lastName, LocalDate dob) {

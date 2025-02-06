@@ -15,6 +15,7 @@ public class Exercise {
     @Column(name = "exercise_id")
     private Long id;
 
+    @Column
     private String name;
 
     private int sets;

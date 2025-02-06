@@ -17,11 +17,13 @@ public class Workout {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "NAME")
     private String name;
 
+    @Column(name = "DESCRIPTION")
     private String description;
 
     @ManyToOne(targetEntity = Exercise.class)
-    @JoinColumn(name = "exercise_list")
+    @JoinColumn(name = "EXERCISE_LIST")
     private List<Exercise> exerciseList;
 }

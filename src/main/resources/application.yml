@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: jdbc:mysql://127.0.0.1:3306/sjcfitdb
-    username: root
-    password: elpassword
+    url: jdbc:mysql://9090:3306/aspirefitness
+    username: arne
+    password: slot
   jpa:
     hibernate:
       naming:
