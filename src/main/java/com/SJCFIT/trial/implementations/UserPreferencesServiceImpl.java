@@ -1,7 +1,7 @@
 package com.SJCFIT.trial.implementations;
 
-import com.SJCFIT.trial.model.User;
-import com.SJCFIT.trial.model.UserPreferences;
+import com.SJCFIT.trial.model.user.User;
+import com.SJCFIT.trial.model.user.UserPreferences;
 import com.SJCFIT.trial.repository.UserRepository;
 import com.SJCFIT.trial.service.UserPreferenceService;
 import com.SJCFIT.trial.service.UserService;

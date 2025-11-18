@@ -1,4 +1,4 @@
-package com.SJCFIT.trial.model;
+package com.SJCFIT.trial.model.user;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;

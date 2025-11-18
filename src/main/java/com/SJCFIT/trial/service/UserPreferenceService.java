@@ -1,6 +1,6 @@
 package com.SJCFIT.trial.service;
 
-import com.SJCFIT.trial.model.UserPreferences;
+import com.SJCFIT.trial.model.user.UserPreferences;
 import org.springframework.stereotype.Service;
 
 @Service

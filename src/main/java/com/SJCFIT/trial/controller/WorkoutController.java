@@ -1,34 +1,30 @@
 package com.SJCFIT.trial.controller;
 
-import com.SJCFIT.trial.model.Exercise;
+import com.SJCFIT.trial.model.exercise.Exercise;
 import com.SJCFIT.trial.repository.ExerciseRepository;
-import com.SJCFIT.trial.service.ExerciseService;
+import com.SJCFIT.trial.service.WorkoutService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@RestController
-public class ExerciseController{
+@RestController("/workouts")
+public class WorkoutController {
 
     @Autowired
     ExerciseRepository exerciseRepository;
     @Autowired
-    ExerciseService exerciseService;
+    WorkoutService workoutService;
 
-    @PostMapping("/createExercise")
+    @PostMapping("/createWorkout")
     public ResponseEntity<Exercise> createExercise(
             @RequestParam(name = "exerciseName") String exerciseName
             ){
-        Exercise newExercise = new Exercise(exerciseName);
-        exerciseRepository.save(newExercise);
-        return ResponseEntity.ok(newExercise);
+        return null;
     }
 
-    @GetMapping("/getAllExercises")
+    @GetMapping("/getAllWorkouts")
     public ResponseEntity<List<Exercise>> getAllExercises(){
         return ResponseEntity.ok(exerciseRepository.findAll());
     }

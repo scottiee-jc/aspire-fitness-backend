@@ -4,4 +4,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 public interface UserService {
+
+    void addWorkout(String userId, String workoutName);
+    void removeWorkout(String userId, String workoutName);
 }

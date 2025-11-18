@@ -1,10 +1,9 @@
-package com.SJCFIT.trial.model;
+package com.SJCFIT.trial.model.user;
 
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDate;
-import java.util.List;
 
 @Data
 @Entity
@@ -20,8 +19,12 @@ public class User {
     private String lastName;
     private int age;
     private LocalDate dob;
+    private UserPreferences userPreferences;
+    private UserWorkouts userWorkouts;
 
-    //controller constructor for new user
     public User(String firstName, String lastName, LocalDate dob) {
+        this.firstName = firstName;
+        this.lastName = lastName;
+        this.dob = dob;
     }
 }
