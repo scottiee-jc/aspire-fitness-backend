@@ -4,7 +4,8 @@ public enum SubscriberLevel {
 
     IRON("IRON"),
     STEEL("STEEL"),
-    TITANIUM("TITANIUM");
+    TITANIUM("TITANIUM"),
+    CHROMIUM("CHROMIUM"); // the strongest metal on earth
 
     SubscriberLevel(String value){
         this.value = value;

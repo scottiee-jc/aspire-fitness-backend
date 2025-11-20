@@ -4,32 +4,31 @@ import com.SJCFIT.trial.model.exercise.Exercise;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.util.List;
+import java.sql.Blob;
 import java.util.Stack;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "workouts")
-@NamedQuery(
-        name = "Employee.byDepartment",
-        query = "FROM Employee WHERE department = :department",
-        resultClass = Workout.class
-)
+@Inheritance(strategy = InheritanceType.JOINED) // JOINS subclasses to parent table
 public class Workout {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    @Column(name = "NAME")
     private String name;
-
-    @Column(name = "DESCRIPTION")
     private String description;
+    private Blob picture;
 
-    @ManyToOne(targetEntity = Exercise.class)
+    @OneToMany(targetEntity = Exercise.class)
     @JoinColumn(name = "EXERCISE_LIST")
     private Stack<Exercise> exerciseList;
+
+    public Workout(Long id, String name, String description, Stack<Exercise> exerciseList) {
+        this.id = id;
+        this.name = name;
+        this.description = description;
+        this.exerciseList = exerciseList;
+    }
 }

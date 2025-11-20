@@ -7,8 +7,12 @@ import lombok.*;
 @Entity
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "exercises")
+@Inheritance(strategy = InheritanceType.JOINED) // JOINS subclasses to parent table
 public abstract class Exercise {
+
+    @Id
+    @GeneratedValue
+    private Long id;
 
     private String name;
 

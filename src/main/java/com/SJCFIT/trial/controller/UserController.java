@@ -4,6 +4,7 @@ import com.SJCFIT.trial.model.user.User;
 import com.SJCFIT.trial.model.user.UserPreferences;
 import com.SJCFIT.trial.repository.UserRepository;
 import com.SJCFIT.trial.service.UserPreferenceService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -19,7 +20,7 @@ public class UserController {
     private UserPreferenceService userPreferenceService;
 
     @PostMapping("/createUser")
-    public ResponseEntity<User> createUser(
+    public ResponseEntity<String> createUser(
             @RequestParam(name = "first_name") String firstName,
             @RequestParam(name = "first_name") String lastName,
             @RequestParam(name = "date_of_birth")LocalDate dob
@@ -29,12 +30,21 @@ public class UserController {
         return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).build();
     }
 
-    @GetMapping("/get-user-preferences")
+    @GetMapping("/getUserPreferences")
     public ResponseEntity<UserPreferences> getUserPreferences(
             @RequestParam(name = "account-id") String accountId
     ){
         UserPreferences userPreferences = userPreferenceService.getUserPreferences(accountId);
         return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(userPreferences);
+    }
+
+    @PostMapping("/saveWorkout")
+    public ResponseEntity<String> saveWorkout(
+            @RequestParam(name = "accountNumber") String accountNumber,
+            @RequestParam(name = "query") String query
+    ){
+        // logic for user service to log workout
+        return new ResponseEntity<>( "Saved Successfully", HttpStatus.OK);
     }
 
 }

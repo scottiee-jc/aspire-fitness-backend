@@ -1,6 +1,6 @@
 package com.SJCFIT.trial.model.exercise;
 
-import com.SJCFIT.trial.model.Intensity;
+import jakarta.persistence.Entity;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -10,12 +10,13 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Entity
 public class CardiovascularExercise extends Exercise {
 
     private int exerciseDuration;
 
-    public CardiovascularExercise(String name, String description, String intensity, int exerciseDuration) {
-        super(name, description, intensity);
+    public CardiovascularExercise(Long id, String name, String description, String intensity, int exerciseDuration) {
+        super(id, name, description, intensity);
         this.exerciseDuration = exerciseDuration;
     }
 }

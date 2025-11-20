@@ -2,46 +2,36 @@ package com.SJCFIT.trial.model.user;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDate;
-import java.util.concurrent.Flow;
-
+import lombok.Setter;
 
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "USER_PREFERENCES", schema = "RECORDS")
+@Getter
+@Setter
 public class UserPreferences {
+
+    @Id
+    private Long id;
+
+    @OneToOne
+    @MapsId
+    @JoinColumn(name = "id")
+    private User user;
+    //Simplifies one‑to‑one mappings: No need for separate surrogate keys in the child table.
+    //Enforces tight coupling: Guarantees that a child cannot exist without its parent.
+
+    private String accountId;
+    private String firstName;
+    private String middleName;
+    private String lastName;
+    private String gender;
+    private boolean isSubscriber;
+    private String subscriberLevel;
 
     public UserPreferences(String accountId) {
         this.accountId = accountId;
     }
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "USER_PREFERENCE_ID")
-    private Long id;
-
-    @Column(name = "ACCOUNT_ID")
-    private String accountId;
-
-    @Column(name = "FIRST_NAME")
-    private String firstName;
-
-    @Column(name = "MIDDLE_NAME")
-    private String middleName;
-
-    @Column(name = "LAST_NAME")
-    private String lastName;
-
-    @Column(name = "GENDER")
-    private String gender;
-
-    @Column(name = "SUBSCRIBER", nullable = false)
-    private boolean isSubscriber;
-
-    @Column(name = "LAST_NAME")
-    private String subscriberLevel;
-
 }

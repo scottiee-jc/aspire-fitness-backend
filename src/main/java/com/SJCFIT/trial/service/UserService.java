@@ -7,4 +7,5 @@ public interface UserService {
 
     void addWorkout(String userId, String workoutName);
     void removeWorkout(String userId, String workoutName);
+    void editUserWorkout(String query);
 }

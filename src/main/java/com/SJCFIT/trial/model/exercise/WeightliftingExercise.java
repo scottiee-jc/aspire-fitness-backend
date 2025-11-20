@@ -1,6 +1,6 @@
 package com.SJCFIT.trial.model.exercise;
 
-import lombok.AllArgsConstructor;
+import jakarta.persistence.Entity;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -8,6 +8,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @Setter
 @Getter
+@Entity
 public class WeightliftingExercise extends Exercise {
 
     private int sets;
@@ -15,8 +16,8 @@ public class WeightliftingExercise extends Exercise {
     private Weight weight;
     private Equipment equipment;
 
-    public WeightliftingExercise(String name, String description, String intensity, int sets, int reps, Weight weight, Equipment equipment) {
-        super(name, description, intensity);
+    public WeightliftingExercise(Long id, String name, String description, String intensity, int sets, int reps, Weight weight, Equipment equipment) {
+        super(id, name, description, intensity);
         this.sets = sets;
         this.reps = reps;
         this.weight = weight;

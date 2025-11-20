@@ -4,19 +4,17 @@ import com.SJCFIT.trial.model.Workout;
 import com.SJCFIT.trial.model.user.User;
 import com.SJCFIT.trial.repository.UserRepository;
 import com.SJCFIT.trial.service.UserService;
-import com.SJCFIT.trial.service.WorkoutService;
 
 import java.util.List;
 
 public class UserServiceImpl implements UserService {
 
-    WorkoutService workoutService;
     UserRepository userRepository;
 
     @Override
     public void addWorkout(String userId, String workoutName){
         User user = userRepository.findUser(userId);
-        List<Workout> userWorkouts = user.getUserWorkouts().workoutsList();
+        List<Workout> userWorkouts = user.getUserSavedWorkouts();
         if (!doesExist(userWorkouts, workoutName)){
             Workout workout = userWorkouts.stream().filter(workout1 -> workout1.getName().matches(workoutName)).findFirst().get();
             userWorkouts.add(workout);
@@ -28,7 +26,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public void removeWorkout(String userId, String workoutName){
         User user = userRepository.findUser(userId);
-        List<Workout> userWorkouts = user.getUserWorkouts().workoutsList();
+        List<Workout> userWorkouts = user.getUserSavedWorkouts();
         if (doesExist(userWorkouts, workoutName)){
             userWorkouts.stream()
                     .filter(workout -> workout.getName().matches(workoutName))
@@ -37,6 +35,11 @@ public class UserServiceImpl implements UserService {
         } else {
             throw new RuntimeException("Cannot remove " + workoutName + " as it doesn't exist");
         }
+    }
+
+    @Override
+    public void editUserWorkout(String query) {
+        // implement logic (potentially through a switch function?) to retrieve database logic and return
     }
 
     private boolean doesExist(List<Workout> workouts, String workoutName){
