@@ -1,6 +1,6 @@
 package com.SJCFIT.trial.repository;
 
-import com.SJCFIT.trial.model.Exercise;
+import com.SJCFIT.trial.model.exercise.Exercise;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
