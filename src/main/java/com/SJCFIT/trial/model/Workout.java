@@ -5,12 +5,14 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.sql.Blob;
-import java.util.Stack;
+import java.util.ArrayList;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
+@Builder
 @Inheritance(strategy = InheritanceType.JOINED) // JOINS subclasses to parent table
 public class Workout {
 
@@ -21,11 +23,19 @@ public class Workout {
     private String description;
     private Blob picture;
 
-    @OneToMany(targetEntity = Exercise.class)
-    @JoinColumn(name = "EXERCISE_LIST")
-    private Stack<Exercise> exerciseList;
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    private com.SJCFIT.trial.model.user.User user;
 
-    public Workout(Long id, String name, String description, Stack<Exercise> exerciseList) {
+    @ManyToOne
+    @JoinColumn(name = "workout_plan_id")
+    private com.SJCFIT.trial.model.user.UserWorkoutPlan userWorkoutPlan;
+
+    @OneToMany(targetEntity = Exercise.class)
+    @JoinColumn(name = "workout_id")
+    private List<Exercise> exerciseList = new ArrayList<>();
+
+    public Workout(Long id, String name, String description, List<Exercise> exerciseList) {
         this.id = id;
         this.name = name;
         this.description = description;

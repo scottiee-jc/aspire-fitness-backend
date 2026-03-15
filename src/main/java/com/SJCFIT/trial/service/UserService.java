@@ -1,11 +1,12 @@
 package com.SJCFIT.trial.service;
 
-import org.springframework.stereotype.Service;
+import com.SJCFIT.trial.model.user.User;
 
-@Service
 public interface UserService {
 
+    void addUser(User user);
     void addWorkout(String userId, String workoutName);
     void removeWorkout(String userId, String workoutName);
     void editUserWorkout(String query);
+    User getUser(String token);
 }

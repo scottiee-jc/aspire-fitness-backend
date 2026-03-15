@@ -35,3 +35,10 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Node / agent-service ###
+node_modules/
+dist/
+.env
+*.log
+
