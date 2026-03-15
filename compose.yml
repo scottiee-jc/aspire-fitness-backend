@@ -1,0 +1,22 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: aspirefitness-db
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: aspirefitness
+      MYSQL_USER: arne
+      MYSQL_PASSWORD: slot
+    ports:
+      - '3307:3306'
+    volumes:
+      - aspirefitness-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  aspirefitness-data:
+
