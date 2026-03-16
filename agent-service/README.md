@@ -1,6 +1,9 @@
-# 🤖 Workout Agent Service
+# 🤖 AspireFit AI Agent Service
 
-An AI-powered gateway that calls your Workout API on behalf of authenticated users. Send natural language or structured commands, and the agent figures out which API calls to make.
+An AI-powered assistant for the AspireFit Workout API. Features two tiers of access:
+
+- **Public** — Anyone can ask general fitness, exercise, and nutrition questions.
+- **Authenticated** — Sign in via the API to unlock personalised features: manage workouts, view your profile, and get tailored advice.
 
 ---
 
@@ -15,18 +18,13 @@ An AI-powered gateway that calls your Workout API on behalf of authenticated use
 - [Running the Service](#running-the-service)
 - [API Reference](#api-reference)
   - [Health Check](#health-check)
-  - [Chat Endpoint](#chat-endpoint)
+  - [Ask — General Fitness Q\&A (public)](#ask--general-fitness-qa-public)
+  - [Chat — Personalised Agent (authenticated)](#chat--personalised-agent-authenticated)
 - [Agent Modes](#agent-modes)
-  - [Rule-Based Mode (default)](#rule-based-mode-default)
-  - [OpenAI Tool-Calling Mode](#openai-tool-calling-mode)
-- [Available Tools](#available-tools)
+- [Available Tools (authenticated)](#available-tools-authenticated)
 - [Session Management](#session-management)
+- [Interactive CLI](#interactive-cli)
 - [Usage Examples](#usage-examples)
-  - [Step 1 — Start a Session & Log In](#step-1--start-a-session--log-in)
-  - [Step 2 — Fetch User Details](#step-2--fetch-user-details)
-  - [Step 3 — Add a Workout](#step-3--add-a-workout)
-  - [Step 4 — Update a Workout](#step-4--update-a-workout)
-  - [Step 5 — Remove a Workout](#step-5--remove-a-workout)
 - [Error Handling](#error-handling)
 - [Running Tests](#running-tests)
 - [Building for Production](#building-for-production)
@@ -37,28 +35,38 @@ An AI-powered gateway that calls your Workout API on behalf of authenticated use
 
 ## Overview
 
-This service sits between your client application and your Java Workout API. Instead of the client making raw HTTP calls, it sends a chat-style message to the agent, which:
+```
+                    ┌─────────────────────────────────────────────┐
+                    │           Agent Service (Node.js)           │
+                    │                                             │
+  Anyone ──────────▶│  POST /agent/ask                            │
+                    │  General fitness Q&A                        │
+                    │  (OpenAI or rule-based, no auth needed)     │
+                    │                                             │
+  Signed-in ───────▶│  POST /agent/chat                           │
+  user              │  Personalised workout management            │──▶ Workout API
+  (Bearer token)    │  (tool-calling agent, auth required)        │    (Java/Spring)
+                    │                                             │
+                    └─────────────────────────────────────────────┘
+```
 
-1. Interprets the user's intent (via rules or an LLM).
-2. Authenticates with your backend using stored session tokens.
-3. Calls the appropriate Workout API endpoint(s).
-4. Returns a human-friendly reply plus the raw API data.
+**Key design principle:** The agent does **not** handle login. Users authenticate via the normal API (`/authz/v1/login`), receive a token, and pass it to the agent's `/agent/chat` endpoint. This mirrors how a real application works — you sign in once, then use the AI features.
 
 ---
 
 ## Architecture
 
 ```
-┌──────────────┐       ┌────────────────────┐       ┌──────────────────┐
-│  Client App  │──────▶│  Agent Service     │──────▶│  Workout API     │
-│  (browser,   │ POST  │  (Node/TypeScript)  │ HTTP  │  (Java/Spring)   │
-│   mobile,    │/agent │                    │       │  localhost:8080   │
-│   curl)      │/chat  │  • Session store   │       │                  │
-└──────────────┘       │  • Tool executor   │       │  • /auth/login   │
-                       │  • LLM or rules    │       │  • /users/{id}   │
-                       └────────────────────┘       │  • /users/{id}/  │
-                                                    │    workouts      │
-                                                    └──────────────────┘
+┌──────────────┐                ┌──────────────────────┐              ┌──────────────────┐
+│  Client App  │                │  Agent Service       │              │  Workout API     │
+│              │   /agent/ask   │                      │              │  (Spring Boot)   │
+│  browser,    │───────────────▶│  General Q&A         │              │  localhost:8080   │
+│  mobile,     │   (no auth)    │  (OpenAI / rules)    │              │                  │
+│  curl,       │                │                      │              │                  │
+│  CLI         │   /agent/chat  │  Personalised agent  │  HTTP calls  │  /authz/v1/login │
+│              │───────────────▶│  (tool-calling)      │─────────────▶│  /user/v1/...    │
+│              │   (Bearer tok) │                      │              │  /workouts/...   │
+└──────────────┘                └──────────────────────┘              └──────────────────┘
 ```
 
 ---
@@ -71,28 +79,29 @@ agent-service/
 ├── package.json          # Dependencies and scripts
 ├── tsconfig.json         # TypeScript configuration
 ├── src/
-│   ├── server.ts         # Express app entry point
+│   ├── server.ts         # Express HTTP server entry point
+│   ├── cli.ts            # Interactive CLI client
 │   ├── config.ts         # Loads and validates env vars
 │   ├── types.ts          # Shared TypeScript types
 │   ├── sessionStore.ts   # In-memory per-user session/token store
 │   ├── apiClient.ts      # HTTP wrappers for the Workout API
-│   ├── tools.ts          # Tool definitions with Zod validation
-│   ├── agent.ts          # Agent logic (rule-based + OpenAI modes)
+│   ├── tools.ts          # Tool executor with Zod validation
+│   ├── agent.ts          # Agent logic: runAsk (public) + runChat (auth)
 │   ├── agent.test.ts     # Unit tests
 │   └── routes/
-│       └── chat.ts       # POST /agent/chat route handler
+│       └── chat.ts       # Route handlers: /agent/ask and /agent/chat
 ```
 
 ---
 
 ## Prerequisites
 
-| Requirement        | Version  | Notes                                       |
-|--------------------|----------|---------------------------------------------|
-| **Node.js**        | 20+      | Required for `fetch` and ES module support  |
-| **npm**            | 10+      | Ships with Node 20                          |
-| **Workout API**    | —        | Your Java backend running on port 8080      |
-| **OpenAI API key** | —        | Only needed if you want LLM mode            |
+| Requirement        | Version | Notes                                      |
+|--------------------|---------|---------------------------------------------|
+| **Node.js**        | 20+     | Required for `fetch` and ES module support  |
+| **npm**            | 10+     | Ships with Node 20                          |
+| **Workout API**    | —       | Your Java backend running on port 8080      |
+| **OpenAI API key** | —       | Optional — enables LLM-powered responses    |
 
 ---
 
@@ -100,7 +109,7 @@ agent-service/
 
 ```bash
 cd agent-service
-cp .env.example .env
+cp .env.example .env    # then edit .env with your settings
 npm install
 ```
 
@@ -108,36 +117,25 @@ npm install
 
 ## Configuration
 
-Edit the `.env` file created during installation:
+Edit `.env`:
 
 ```dotenv
-# ── Server ──────────────────────────────────
-PORT=3001                                # Port the agent listens on
-
-# ── Workout API ─────────────────────────────
-WORKOUT_API_BASE_URL=http://localhost:8080  # Base URL of your Java backend
-
-# ── Agent Mode ──────────────────────────────
-LLM_MODE=rule-based                      # "rule-based" or "openai"
-
-# ── OpenAI (only needed when LLM_MODE=openai) ──
-OPENAI_API_KEY=                          # Your sk-... key
-LLM_MODEL=gpt-4.1-mini                  # Any OpenAI chat model
-
-# ── Security ────────────────────────────────
-SESSION_SECRET=change-me                 # Used for session ID generation
+PORT=3001
+WORKOUT_API_BASE_URL=http://localhost:8080
+LLM_MODE=rule-based          # "rule-based" or "openai"
+OPENAI_API_KEY=              # Your sk-... key (only for openai mode)
+LLM_MODEL=gpt-4.1-mini
+SESSION_SECRET=change-me
 ```
 
-| Variable               | Required | Default                  | Description                          |
-|------------------------|----------|--------------------------|--------------------------------------|
-| `PORT`                 | No       | `3001`                   | HTTP listen port                     |
-| `WORKOUT_API_BASE_URL` | **Yes**  | —                        | Your Java API base URL               |
-| `LLM_MODE`             | No       | `rule-based`             | `rule-based` or `openai`             |
-| `OPENAI_API_KEY`       | No*      | —                        | *Required if `LLM_MODE=openai`       |
-| `LLM_MODEL`            | No       | `gpt-4.1-mini`           | OpenAI model to use                  |
-| `SESSION_SECRET`       | No       | `change-me`              | Seed for session ID hashing          |
-
-> **Note:** If `LLM_MODE=openai` but the API key is missing, empty, or a placeholder, the agent automatically falls back to rule-based mode.
+| Variable               | Required | Default        | Description                    |
+|------------------------|----------|----------------|--------------------------------|
+| `PORT`                 | No       | `3001`         | Agent HTTP listen port         |
+| `WORKOUT_API_BASE_URL` | **Yes**  | —              | Your Spring Boot API URL       |
+| `LLM_MODE`             | No       | `rule-based`   | `rule-based` or `openai`       |
+| `OPENAI_API_KEY`       | No*      | —              | *Required if `LLM_MODE=openai` |
+| `LLM_MODEL`            | No       | `gpt-4.1-mini` | OpenAI model to use            |
+| `SESSION_SECRET`       | No       | `change-me`    | Seed for session hashing       |
 
 ---
 
@@ -152,15 +150,17 @@ npm run dev
 ### Production
 
 ```bash
-npm run build    # Compiles TypeScript → dist/
-npm start        # Runs dist/server.js
+npm run build
+npm start
 ```
 
-You should see:
+### Interactive CLI
 
+```bash
+npm run cli
 ```
-Agent service listening on port 3001
-```
+
+The CLI auto-starts the server if it's not running. See [Interactive CLI](#interactive-cli) for details.
 
 ---
 
@@ -170,39 +170,101 @@ Agent service listening on port 3001
 
 ```
 GET /health
+→ { "ok": true }
 ```
-
-**Response:**
-
-```json
-{ "ok": true }
-```
-
-Use this to verify the agent service is running before sending chat requests.
 
 ---
 
-### Chat Endpoint
+### Ask — General Fitness Q&A (public)
+
+No authentication required. Anyone can ask general fitness questions.
 
 ```
-POST /agent/chat
+POST /agent/ask
 Content-Type: application/json
 ```
 
 **Request body:**
 
-| Field       | Type   | Required | Description                                                        |
-|-------------|--------|----------|--------------------------------------------------------------------|
-| `message`   | string | **Yes**  | The command or natural language message                             |
-| `sessionId` | string | No       | Re-use a previous session ID to keep your auth token across calls  |
+| Field     | Type   | Required | Description                |
+|-----------|--------|----------|----------------------------|
+| `message` | string | **Yes**  | Your fitness question      |
 
 **Response body:**
 
-| Field        | Type   | Always present | Description                                  |
-|--------------|--------|----------------|----------------------------------------------|
-| `sessionId`  | string | Yes            | Session ID (generated if not provided)        |
-| `reply`      | string | Yes            | Human-readable result message                 |
-| `toolResult` | object | No             | Raw data returned from the Workout API        |
+| Field   | Type   | Description                     |
+|---------|--------|---------------------------------|
+| `reply` | string | The agent's answer              |
+
+**Example:**
+
+```bash
+curl -X POST http://localhost:3001/agent/ask \
+  -H 'Content-Type: application/json' \
+  -d '{"message": "How much protein should I eat to build muscle?"}'
+```
+
+```json
+{
+  "reply": "For muscle building, aim for 1.6–2.2 g of protein per kg of body weight daily..."
+}
+```
+
+---
+
+### Chat — Personalised Agent (authenticated)
+
+Requires a Bearer token from the Workout API. The agent validates your token, then can manage your workouts and give personalised advice.
+
+```
+POST /agent/chat
+Content-Type: application/json
+Authorization: Bearer <your-api-token>
+```
+
+**Request body:**
+
+| Field       | Type   | Required | Description                                            |
+|-------------|--------|----------|--------------------------------------------------------|
+| `message`   | string | **Yes**  | Command or natural language message                    |
+| `sessionId` | string | No       | Reuse a session ID to maintain context across requests |
+
+**Response body:**
+
+| Field        | Type   | Always present | Description                           |
+|--------------|--------|----------------|---------------------------------------|
+| `sessionId`  | string | Yes            | Session ID for subsequent requests    |
+| `reply`      | string | Yes            | Human-readable response               |
+| `toolResult` | object | No             | Raw data from the Workout API         |
+
+**Example:**
+
+```bash
+# Step 1: Sign in via the Spring Boot API
+TOKEN=$(curl -s 'http://localhost:8080/authz/v1/login?username=scott&password=mypass')
+
+# Step 2: Use the token with the agent
+curl -X POST http://localhost:3001/agent/chat \
+  -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"message": "Add a new workout called Upper Body Push"}'
+```
+
+```json
+{
+  "sessionId": "a1b2c3...",
+  "reply": "Done — I've created your 'Upper Body Push' workout.",
+  "toolResult": { "id": "w-123", "name": "Upper Body Push" }
+}
+```
+
+**Without a token:**
+
+```json
+{
+  "error": "Authentication required. Please sign in via the API first and include your token as: Authorization: Bearer <token>"
+}
+```
 
 ---
 
@@ -210,214 +272,132 @@ Content-Type: application/json
 
 ### Rule-Based Mode (default)
 
-The agent matches your message against fixed command patterns. Fast, deterministic, no external API calls.
+Fast, deterministic, no external API calls. The **ask** endpoint responds with curated fitness advice for common topics (protein, recovery, warm-ups, beginner tips, fat loss). The **chat** endpoint matches structured commands.
 
-**Supported commands:**
+### OpenAI Mode
 
-| Command                                           | Action                      |
-|---------------------------------------------------|-----------------------------|
-| `login <username> <password>`                     | Authenticate and store token|
-| `get user <userId>`                               | Fetch user by ID            |
-| `add workout <userId> <workoutName>`              | Create a workout            |
-| `update workout <userId> <workoutId> <newName>`   | Update a workout            |
-| `remove workout <userId> <workoutId>`             | Delete a workout            |
+Set `LLM_MODE=openai` with a valid API key. Both endpoints use OpenAI:
 
-Any unrecognised message returns a help summary listing the commands above.
+- **Ask** — natural language fitness Q&A powered by GPT
+- **Chat** — tool-calling agent that interprets natural language and automatically calls the right API endpoints
 
 ---
 
-### OpenAI Tool-Calling Mode
+## Available Tools (authenticated)
 
-The agent sends your message to an OpenAI model with strict tool/function schemas. The LLM decides which tool to call and extracts the arguments from natural language.
+These tools are only available on `/agent/chat` for signed-in users:
 
-**To enable:** set `LLM_MODE=openai` and provide a valid `OPENAI_API_KEY` in `.env`.
+| Tool             | Arguments                              | Description                                  |
+|------------------|----------------------------------------|----------------------------------------------|
+| `get_user`       | *(none — uses session)*                | Fetch your profile                           |
+| `add_workout`    | `name`, `notes` (optional)             | Create a new workout                         |
+| `update_workout` | `workoutId`, `name`, `notes` (optional)| Update an existing workout                   |
+| `remove_workout` | `workoutId`                            | Delete a workout                             |
 
-**Example natural language messages the LLM understands:**
-
-- *"Log me in as scott with password mypass123"*
-- *"Show me the profile for user abc-456"*
-- *"Create a new push day workout for user abc-456"*
-- *"Rename workout w-789 for user abc-456 to Upper Body Strength"*
-- *"Delete workout w-789 from user abc-456"*
-
-If the LLM can't determine a required argument, it will ask a follow-up question instead of guessing.
-
----
-
-## Available Tools
-
-These are the tools the agent can execute (in either mode):
-
-| Tool             | Arguments                                      | Auth required | Description                        |
-|------------------|-------------------------------------------------|---------------|------------------------------------|
-| `login`          | `username`, `password`                          | No            | Calls `POST /auth/login`           |
-| `get_user`       | `userId`                                        | Yes           | Calls `GET /users/{userId}`        |
-| `add_workout`    | `userId`, `name`, `notes` (optional)            | Yes           | Calls `POST /users/{userId}/workouts` |
-| `update_workout` | `userId`, `workoutId`, `name`, `notes` (both optional) | Yes  | Calls `PUT /users/{userId}/workouts/{workoutId}` |
-| `remove_workout` | `userId`, `workoutId`                           | Yes           | Calls `DELETE /users/{userId}/workouts/{workoutId}` |
-
-All tool arguments are validated with [Zod](https://zod.dev/) schemas before any API call is made.
+> **Note:** `userId` is automatically injected from your session — neither you nor the LLM need to specify it.
 
 ---
 
 ## Session Management
 
-Sessions track authentication state so you don't need to log in on every request.
+1. **First chat request** — omit `sessionId`. The agent generates one and returns it.
+2. **Subsequent requests** — include the `sessionId`. Your auth context is reused.
 
-1. **First request** — omit `sessionId`. The agent generates one and returns it.
-2. **Subsequent requests** — include the `sessionId` from the first response. Your stored auth token is re-used automatically.
+Sessions are stored **in-memory** and lost on restart.
 
-Sessions are stored **in-memory** and are lost when the service restarts.
+> **Production:** Replace `InMemorySessionStore` with Redis or a database.
 
-> **Production recommendation:** Replace `InMemorySessionStore` in `src/sessionStore.ts` with Redis, a database, or any persistent store.
+---
+
+## Interactive CLI
+
+The CLI provides an interactive terminal experience:
+
+```bash
+npm run cli
+```
+
+```
+🤖 AspireFit AI Agent
+   Backend API: http://localhost:8080
+   Agent server: http://localhost:3001
+
+   Commands:
+     ask <question>       — general fitness Q&A (no sign-in needed)
+     login <user> <pass>  — sign in to unlock personalised features
+     <anything else>      — personalised chat (requires sign-in)
+     quit                 — exit
+
+🔒 Not signed in — use 'ask' or 'login' first
+
+agent> ask what are good exercises for beginners?
+
+💬 If you're just starting out, focus on compound movements: squats, deadlifts,
+   bench press, rows, and overhead press. Start light, nail your form, and add
+   weight gradually.
+
+agent> login scott mypassword
+
+🔓 Signed in successfully! Token: eyJhbGciOiJIUzI1...
+   You can now use personalised features.
+
+agent> add a new workout called Leg Day
+
+💬 Done — I've created your 'Leg Day' workout.
+📦 Result: { "id": "w-456", "name": "Leg Day" }
+
+agent> quit
+Bye!
+```
+
+The CLI automatically:
+- Starts the agent server if it's not already running
+- Handles login by calling the Spring Boot API directly
+- Routes `ask` commands to the public endpoint
+- Routes everything else to the authenticated endpoint (with your token)
 
 ---
 
 ## Usage Examples
 
-All examples use `curl`. Replace values in `<angle brackets>` with your own.
-
-### Step 1 — Start a Session & Log In
+### Ask a general question (no sign-in)
 
 ```bash
-curl -X POST http://localhost:3001/agent/chat \
+curl -X POST http://localhost:3001/agent/ask \
   -H 'Content-Type: application/json' \
-  -d '{"message": "login myuser mypassword"}'
+  -d '{"message": "How should I warm up before lifting?"}'
 ```
 
-**Response:**
-
-```json
-{
-  "sessionId": "a1b2c3d4e5...long-hash",
-  "reply": "Logged in successfully.",
-  "toolResult": {
-    "authenticated": true,
-    "userId": "abc-123"
-  }
-}
-```
-
-Save the `sessionId` for use in all following requests.
-
----
-
-### Step 2 — Fetch User Details
+### Sign in and manage workouts
 
 ```bash
+# 1. Login via the Spring Boot API
+TOKEN=$(curl -s 'http://localhost:8080/authz/v1/login?username=scott&password=mypass')
+
+# 2. Add a workout
 curl -X POST http://localhost:3001/agent/chat \
   -H 'Content-Type: application/json' \
-  -d '{
-    "sessionId": "<sessionId-from-step-1>",
-    "message": "get user abc-123"
-  }'
-```
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"message": "Add a workout called Push Day"}'
 
-**Response:**
-
-```json
-{
-  "sessionId": "<same-session-id>",
-  "reply": "Fetched user.",
-  "toolResult": {
-    "id": "abc-123",
-    "username": "myuser",
-    "email": "myuser@example.com"
-  }
-}
-```
-
----
-
-### Step 3 — Add a Workout
-
-```bash
+# 3. Use the returned sessionId for follow-ups
 curl -X POST http://localhost:3001/agent/chat \
   -H 'Content-Type: application/json' \
-  -d '{
-    "sessionId": "<sessionId>",
-    "message": "add workout abc-123 Leg Day"
-  }'
-```
-
-**Response:**
-
-```json
-{
-  "sessionId": "<same-session-id>",
-  "reply": "Workout added.",
-  "toolResult": {
-    "id": "w-789",
-    "name": "Leg Day",
-    "userId": "abc-123"
-  }
-}
-```
-
----
-
-### Step 4 — Update a Workout
-
-```bash
-curl -X POST http://localhost:3001/agent/chat \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "sessionId": "<sessionId>",
-    "message": "update workout abc-123 w-789 Heavy Leg Day"
-  }'
-```
-
-**Response:**
-
-```json
-{
-  "sessionId": "<same-session-id>",
-  "reply": "Workout updated.",
-  "toolResult": {
-    "id": "w-789",
-    "name": "Heavy Leg Day"
-  }
-}
-```
-
----
-
-### Step 5 — Remove a Workout
-
-```bash
-curl -X POST http://localhost:3001/agent/chat \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "sessionId": "<sessionId>",
-    "message": "remove workout abc-123 w-789"
-  }'
-```
-
-**Response:**
-
-```json
-{
-  "sessionId": "<same-session-id>",
-  "reply": "Workout removed."
-}
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"sessionId": "<from-previous>", "message": "Now add a Pull Day workout too"}'
 ```
 
 ---
 
 ## Error Handling
 
-The agent returns errors inline in the `reply` field. Common scenarios:
-
-| Scenario                        | Example `reply`                                               |
-|---------------------------------|---------------------------------------------------------------|
-| Not logged in yet               | `"Tool call failed: Not authenticated in this session. Call login first."` |
-| Invalid credentials             | `"Login failed: API 401 Unauthorized: ..."` |
-| User/workout not found          | `"Could not fetch user: API 404 Not Found: ..."` |
-| Backend not running             | `"Login failed: fetch failed"` |
-| Missing required field          | `"Tool call failed: Expected string, received undefined"` (Zod validation) |
-| Invalid request body to agent   | HTTP `400` with Zod error details |
-
-The HTTP status from the agent is always `200` for successfully processed chat messages — check the `reply` text or absence of `toolResult` to detect logical errors.
+| Scenario                     | HTTP Status | Response                                               |
+|------------------------------|-------------|--------------------------------------------------------|
+| Missing/invalid token        | `401`       | `{"error": "Authentication required..."}`              |
+| Token expired or invalid     | `401`       | `{"error": "Invalid or expired token..."}`             |
+| Missing `message` field      | `400`       | `{"error": { ... }}` (Zod validation details)          |
+| Tool execution failed        | `200`       | `{"reply": "Action failed: ..."}` in reply text        |
+| Backend API not running      | `200`/`500` | Error details in reply or HTTP 500                     |
 
 ---
 
@@ -427,18 +407,7 @@ The HTTP status from the agent is always `200` for successfully processed chat m
 npm test
 ```
 
-Tests use [Vitest](https://vitest.dev/) and run in rule-based mode (no OpenAI key needed):
-
-```
- ✓ src/agent.test.ts (3)
-   ✓ runAgent (3)
-     ✓ returns help text for unknown command in rule-based mode
-     ✓ returns usage hint for incomplete login command
-     ✓ attempts login tool and returns error when API is unreachable
-
- Test Files  1 passed (1)
-      Tests  3 passed (3)
-```
+Tests run in rule-based mode (no OpenAI key needed).
 
 ---
 
@@ -446,11 +415,6 @@ Tests use [Vitest](https://vitest.dev/) and run in rule-based mode (no OpenAI ke
 
 ```bash
 npm run build
-```
-
-This compiles TypeScript to `dist/`. Then run:
-
-```bash
 NODE_ENV=production npm start
 ```
 
@@ -458,27 +422,27 @@ NODE_ENV=production npm start
 
 ## Security Notes
 
-- **Tokens are server-side only.** Auth tokens from your Java API are stored in the agent's session store — they are never sent to the client.
-- **No credentials sent to OpenAI.** In LLM mode, only the user's chat message is sent to OpenAI. Tokens, passwords (after login), and API responses are not forwarded to the LLM.
-- **API key validation.** The agent will not attempt OpenAI calls if the key is empty, contains `your_key`, or doesn't start with `sk-`. It silently falls back to rule-based mode.
-- **Input validation.** Every tool argument is validated with Zod before any API call is made.
-- **Production hardening checklist:**
-  - Replace in-memory session store with Redis or a database.
-  - Add rate limiting (e.g., `express-rate-limit`).
-  - Add HTTPS termination (via reverse proxy or directly).
-  - Rotate `SESSION_SECRET` and store secrets in a vault, not `.env`.
-  - Add request logging and audit trails for all tool executions.
+- **Login is external.** The agent never handles credentials — users sign in via the API and pass the resulting token.
+- **Tokens are server-side.** Auth tokens are stored in the agent's session store, never exposed to the LLM.
+- **No credentials sent to OpenAI.** Only the user's chat message is sent. Tokens and API responses are not forwarded.
+- **Input validation.** Every tool argument is validated with Zod before any API call.
+- **Production hardening:**
+  - Replace in-memory session store with Redis.
+  - Add rate limiting (`express-rate-limit`).
+  - Add HTTPS termination.
+  - Store secrets in a vault, not `.env`.
+  - Add request logging and audit trails.
 
 ---
 
 ## Troubleshooting
 
-| Problem                                    | Solution                                                                                  |
-|--------------------------------------------|-------------------------------------------------------------------------------------------|
-| `Agent service listening on port 3001` never appears | Check `PORT` isn't in use: `lsof -i :3001`                                     |
-| `Missing required environment variable`    | Make sure `.env` exists and has `WORKOUT_API_BASE_URL` set                               |
-| `Login failed: fetch failed`               | Your Java Workout API isn't running on the configured `WORKOUT_API_BASE_URL`             |
-| `Not authenticated in this session`        | You forgot to include `sessionId` from the login response, or the session expired (restart) |
-| LLM mode not activating                    | Verify `LLM_MODE=openai` **and** `OPENAI_API_KEY=sk-...` (must start with `sk-`)        |
-| `Incorrect API key provided`               | Your OpenAI key is invalid; double-check at https://platform.openai.com/api-keys         |
-| Tests fail with OpenAI errors              | Tests should run in rule-based mode; make sure `.env` doesn't have a fake `sk-` key      |
+| Problem                                 | Solution                                                             |
+|-----------------------------------------|----------------------------------------------------------------------|
+| `Missing required environment variable` | Ensure `.env` exists with `WORKOUT_API_BASE_URL`                     |
+| `Authentication required...`            | Pass `Authorization: Bearer <token>` header to `/agent/chat`         |
+| `Invalid or expired token`              | Sign in again via `/authz/v1/login`                                  |
+| Agent server not starting               | Check port: `lsof -i :3001`                                         |
+| LLM mode not activating                 | Verify `LLM_MODE=openai` and `OPENAI_API_KEY=sk-...`                |
+| `ask` returns generic response          | Enable `LLM_MODE=openai` for richer answers                         |
+| Backend API unreachable                 | Make sure Spring Boot is running on `WORKOUT_API_BASE_URL`           |

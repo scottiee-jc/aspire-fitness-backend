@@ -17,12 +17,7 @@ export type ChatRequest = {
   message: string;
 };
 
-export type LoginArgs = {
-  username: string;
-  password: string;
-};
-
-export type AddWorkoutArgs = {
+export type ChatRequest = {
   userId: string;
   name: string;
   notes?: string;

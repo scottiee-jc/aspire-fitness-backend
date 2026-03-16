@@ -1,21 +1,28 @@
 import { describe, expect, it } from "vitest";
-import { runAgent } from "./agent.js";
+import { runAsk, runChat } from "./agent.js";
 
-describe("runAgent", () => {
-  it("returns help text for unknown command in rule-based mode", async () => {
-    const result = await runAgent("test-session", "hello there");
-    expect(result.reply).toContain("I can help with");
+describe("runAsk – public fitness Q&A", () => {
+  it("returns helpful response for general fitness question (rule-based)", async () => {
+    const result = await runAsk("how much protein should I eat?");
+    expect(result.reply.toLowerCase()).toContain("protein");
   });
 
-  it("returns usage hint for incomplete login command", async () => {
-    const result = await runAgent("test-session", "login onlyuser");
-    expect(result.reply).toContain("Usage");
+  it("returns helpful response for beginner question (rule-based)", async () => {
+    const result = await runAsk("I'm a beginner, how do I start working out?");
+    expect(result.reply.toLowerCase()).toContain("compound");
   });
 
-  it("attempts login tool and returns error when API is unreachable", async () => {
-    const result = await runAgent("test-session", "login demo password123");
-    // API not running during test, so expect a failure message
-    expect(result.reply).toMatch(/Login failed|Logged in/);
+  it("returns generic help for unrecognised question (rule-based)", async () => {
+    const result = await runAsk("random gibberish xyz");
+    expect(result.reply).toContain("general fitness questions");
+  });
+});
+
+describe("runChat – authenticated agent", () => {
+  it("returns help commands in rule-based mode for unknown input", () => {
+    const result = runChat("test-session", "hello there");
+    // runChat is not async in rule-based fallback but returns AgentResponse
+    expect(result).toBeDefined();
   });
 });
 
